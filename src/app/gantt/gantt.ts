@@ -62,6 +62,7 @@ export class Gantt {
 
 
   gridDays: { x: number; label: string; }[] = [];
+  gridHours: { x: number; label: string; }[] = [];
   rowLayout: { machine: Machine; y: number; }[] = [];
   batchLayout: Array<{
     id: string; label: string; x: number; y: number; w: number; start: Date; end: Date; color?: string;
@@ -77,32 +78,29 @@ export class Gantt {
     this.recompute();
   }
 
-  // ===== Public controls =====
   zoomIn() { this.pxPerHour = Math.min(200, Math.round(this.pxPerHour * 1.25)); this.recompute(); }
   zoomOut() { this.pxPerHour = Math.max(1, Math.round(this.pxPerHour / 1.25)); this.recompute(); }
   zoomHours(hoursPerCell: number) {
-    // Quick presets: 12(px/hr) ~= hourly; 24(px/hr) ~= daily width
     this.pxPerHour = hoursPerCell;
     this.recompute();
   }
+
 
   private recompute() {
     const start = new Date(this.viewStart);
     const end = new Date(this.viewEnd);
 
 
-    // Row layout
     this.rowLayout = this.machines.map((m, i) => ({ machine: m, y: this.headerHeight + i * this.rowHeight }));
     this.totalHeight = this.headerHeight + this.rowLayout.length * this.rowHeight + 8;
 
 
-    // Width
     const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     this.timeWidth = Math.max(0, hours * this.pxPerHour);
     this.totalWidth = this.leftGutter + this.timeWidth + 40;
 
 
-    // Grid (days)
+    // Days grid
     this.gridDays = [];
     const dayMs = 24 * 3600 * 1000;
     const firstDay = new Date(start); firstDay.setHours(0, 0, 0, 0);
@@ -111,7 +109,18 @@ export class Gantt {
       this.gridDays.push({ x, label: new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     }
 
-    // Batch rectangles
+
+    // Hours grid
+    this.gridHours = [];
+    const hourMs = 3600 * 1000;
+    const firstHour = new Date(start); firstHour.setMinutes(0, 0, 0);
+    for (let t = firstHour.getTime(); t <= end.getTime(); t += hourMs) {
+      const d = new Date(t);
+      const x = this.leftGutter + this.dateToX(d, start);
+      this.gridHours.push({ x, label: d.getHours().toString().padStart(2, '0') + ":00" });
+    }
+
+
     const batchById = new Map<BatchId, { x: number; y: number; w: number; start: Date; end: Date; label: string; id: string; color?: string }>();
     this.batchLayout = [];
     for (let r = 0; r < this.rowLayout.length; r++) {
@@ -128,7 +137,7 @@ export class Gantt {
       }
     }
 
-    // Connectors
+
     this.connectors = [];
     for (const m of this.machines) {
       for (const b of (m.batches || [])) {
@@ -144,32 +153,27 @@ export class Gantt {
     }
   }
 
+
   private dateToX(d: Date, start: Date) {
     const ms = d.getTime() - start.getTime();
     const hours = ms / (1000 * 60 * 60);
     return hours * this.pxPerHour;
   }
 
+
   private makeConnectorPath(from: { x: number; y: number; w: number }, to: { x: number; y: number }) {
-    // Right middle of from → left middle of to
     const x1 = from.x + from.w;
     const y1 = from.y + this.rowHeight / 2;
     const x2 = to.x;
     const y2 = to.y + this.rowHeight / 2;
-
-
-    // Horizontal offset for curves
     const dx = Math.max(24, (x2 - x1) / 2);
-
-
     const c1x = x1 + dx;
     const c1y = y1;
     const c2x = x2 - dx;
     const c2y = y2;
-
-
     return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
   }
+
 
   get todayX(): number | null {
     const t = new Date();

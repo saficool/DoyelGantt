@@ -37,6 +37,6 @@ export class App {
     }
   ];
   viewStart = new Date('2025-08-10T00:00:00');
-  viewEnd = new Date('2025-08-20T00:00:00');
+  viewEnd = new Date('2025-08-14T00:00:00');
 
 }

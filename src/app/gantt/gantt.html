@@ -1,4 +1,7 @@
 <div class="toolbar">
+  <strong>Gantt</strong>
+  <button (click)="zoomHours(12)">Hour</button>
+  <button (click)="zoomHours(24)">Day</button>
   <button (click)="zoomIn()">＋</button>
   <button (click)="zoomOut()">－</button>
   <div class="legend">px/hr: {{pxPerHour}} · Range: {{viewStart | date:'MMM d'}}–{{viewEnd | date:'MMM d, y'}}</div>
@@ -25,6 +28,13 @@
     <ng-container *ngFor="let g of gridDays">
       <line class="grid-line" [attr.x1]="g.x" y1="0" [attr.x2]="g.x" [attr.y2]="totalHeight" />
       <text [attr.x]="g.x + 4" y="16" font-size="12" fill="#6b7280">{{ g.label }}</text>
+    </ng-container>
+
+
+    <!-- Vertical time grid (hours) -->
+    <ng-container *ngFor="let h of gridHours">
+      <line class="hour-line" [attr.x1]="h.x" y1="0" [attr.x2]="h.x" [attr.y2]="totalHeight" />
+      <text *ngIf="pxPerHour >= 8" [attr.x]="h.x + 2" y="28" font-size="9" fill="#9ca3af">{{ h.label }}</text>
     </ng-container>
 
 
