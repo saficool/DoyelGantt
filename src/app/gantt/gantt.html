@@ -1,0 +1,67 @@
+<div class="toolbar">
+  <button (click)="zoomIn()">＋</button>
+  <button (click)="zoomOut()">－</button>
+  <div class="legend">px/hr: {{pxPerHour}} · Range: {{viewStart | date:'MMM d'}}–{{viewEnd | date:'MMM d, y'}}</div>
+</div>
+
+
+<div class="gantt-wrap" #scrollHost>
+  <svg [attr.width]="totalWidth" [attr.height]="totalHeight">
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"></polygon>
+      </marker>
+    </defs>
+
+
+    <!-- Row background bands -->
+    <ng-container *ngFor="let row of rowLayout; let r = index">
+      <rect class="row-band" [attr.x]="leftGutter" [attr.y]="row.y" [attr.width]="timeWidth" [attr.height]="rowHeight"
+        [attr.fill]="r % 2 === 0 ? '#ffffff' : '#fcfcfd'" />
+    </ng-container>
+
+
+    <!-- Vertical time grid (days) -->
+    <ng-container *ngFor="let g of gridDays">
+      <line class="grid-line" [attr.x1]="g.x" y1="0" [attr.x2]="g.x" [attr.y2]="totalHeight" />
+      <text [attr.x]="g.x + 4" y="16" font-size="12" fill="#6b7280">{{ g.label }}</text>
+    </ng-container>
+
+
+    <!-- Today marker -->
+    <line *ngIf="todayX !== null" class="today-line" [attr.x1]="todayX" y1="0" [attr.x2]="todayX"
+      [attr.y2]="totalHeight" />
+
+
+    <!-- Left machine labels gutter -->
+    <ng-container *ngFor="let row of rowLayout">
+      <text class="row-label" [attr.x]="12" [attr.y]="row.y + rowHeight/2 + 5">{{ row.machine.name }}</text>
+    </ng-container>
+
+
+    <!-- Batch rectangles -->
+    <ng-container *ngFor="let b of batchLayout">
+      <rect class="batch-rect" [attr.x]="b.x" [attr.y]="b.y + 6" [attr.width]="b.w" [attr.height]="rowHeight - 12"
+        [attr.fill]="b.color || '#93c5fd'" (mouseenter)="hover=b" (mouseleave)="hover=null"></rect>
+      <clipPath [attr.id]="'clip-'+b.id">
+        <rect [attr.x]="b.x + 6" [attr.y]="b.y + 12" [attr.width]="Math.max(0,b.w-12)" [attr.height]="rowHeight - 24"
+          rx="4" ry="4" />
+      </clipPath>
+      <text class="batch-label" [attr.x]="b.x + 10" [attr.y]="b.y + rowHeight/2 + 4"
+        [attr.clip-path]="'url(#clip-'+b.id+')'">{{ b.label }}</text>
+    </ng-container>
+
+
+    <!-- Connectors -->
+    <path *ngFor="let c of connectors" class="connector" [attr.d]="c.path" />
+
+
+    <!-- Tooltip -->
+    <g *ngIf="hover as h" class="tooltip">
+      <rect [attr.x]="h.x + 8" [attr.y]="h.y - 28" rx="6" ry="6" width="220" height="24" fill="#111827" opacity="0.9" />
+      <text [attr.x]="h.x + 16" [attr.y]="h.y - 12" font-size="12" fill="#fff">
+        {{h.label}} · {{h.start | date:'MMM d, HH:mm'}} → {{h.end | date:'MMM d, HH:mm'}}
+      </text>
+    </g>
+  </svg>
+</div>

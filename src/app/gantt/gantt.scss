@@ -1,0 +1,90 @@
+:host {
+  display: block;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+.toolbar {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .5rem .75rem;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.gantt-wrap {
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+}
+
+.legend {
+  font-size: .8rem;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+button {
+  padding: .35rem .6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #f9fafb;
+}
+
+svg {
+  display: block;
+}
+
+.row-label {
+  font-size: .85rem;
+  fill: #111827;
+}
+
+.batch-label {
+  font-size: .75rem;
+  fill: #111827;
+  pointer-events: none;
+}
+
+.grid-line {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
+.today-line {
+  stroke: #ef4444;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.row-band {
+  fill: #f9fafb;
+}
+
+.connector {
+  stroke: #6b7280;
+  stroke-width: 1.5;
+  fill: none;
+  marker-end: url(#arrowhead);
+  opacity: .9;
+}
+
+.batch-rect {
+  rx: 6;
+  ry: 6;
+  stroke: #11182722;
+  stroke-width: 1;
+}
+
+.tooltip {
+  pointer-events: none;
+}
