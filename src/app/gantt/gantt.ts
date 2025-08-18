@@ -1,78 +1,79 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
-/**
-* Minimal, pure-Angular SVG Gantt chart (no external libraries)
-* - Multiple machines (rows)
-* - Each machine has multiple batches
-* - Batches span hours or days
-* - Connectors show flow from one batch to the next (even across machines)
-* - Basic zoom (hours/day) and panning via native scrolling
-*
-* Usage:
-* <app-gantt
-* [machines]="machines"
-* [viewStart]="new Date('2025-08-10T00:00:00')"
-* [viewEnd]="new Date('2025-08-20T00:00:00')">
-* </app-gantt>
-*/
+export type TaskId = string;
 
-export type BatchId = string;
-
-export interface Batch {
-  id: BatchId;
+export interface Task {
+  id: TaskId;
   label: string;
   start: Date | string;
   end: Date | string;
   color?: string;
-  // IDs of successor batches; connector lines will be drawn from this batch to each successor
-  successors?: BatchId[];
+  successors?: TaskId[];
 }
 
-export interface Machine {
+export interface Resource {
   id: string;
   name: string;
-  batches: Batch[];
+  tasks: Task[];
 }
 
 @Component({
   selector: 'app-gantt',
-  imports: [CommonModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './gantt.html',
   styleUrl: './gantt.scss'
 })
 export class Gantt {
-
-  @Input() machines: Machine[] = [];
+  @Input() resources: Resource[] = [];
   @Input() viewStart: Date = new Date(new Date().setHours(0, 0, 0, 0));
   @Input() viewEnd: Date = new Date(new Date().setDate(new Date().getDate() + 7));
 
-
   // Layout constants
-  pxPerHour = 12; // Zoom factor
-  rowHeight = 48; // Row height
-  leftGutter = 160; // Space for machine names
-  headerHeight = 28; // Top padding for day labels
-
+  pxPerHour = 12;
+  rowHeight = 48;
+  leftGutter = 160;
+  headerHeight = 28;
 
   // Computed layout
   totalWidth = 1000;
   totalHeight = 300;
   timeWidth = 0;
 
-
+  showGridHours: boolean = true
   gridDays: { x: number; label: string; }[] = [];
   gridHours: { x: number; label: string; }[] = [];
-  rowLayout: { machine: Machine; y: number; }[] = [];
-  batchLayout: Array<{
-    id: string; label: string; x: number; y: number; w: number; start: Date; end: Date; color?: string;
-  }> = [];
-  connectors: Array<{ from: string; to: string; path: string; }> = [];
-
+  rowLayout: { resource: Resource; y: number; }[] = [];
+  batchLayout: Array<{ id: string; label: string; x: number; y: number; w: number; start: Date; end: Date; color?: string }> = [];
+  connectors: Array<{ from: string; to: string; points: string; }> = [];
 
   hover: any = null;
   Math = Math;
+  todayX: number | null = null;
 
+  taskForm!: FormGroup
+
+  /**
+   * Constructor of the Component
+   */
+  constructor(
+    private readonly formBuilder: FormBuilder
+  ) {
+    this.initTaskForm()
+  }
+
+  initTaskForm(): void {
+    this.taskForm = this.formBuilder.group({
+      resourceId: ['', [Validators.required]],
+      taskId: ['', Validators.required],
+      taskName: ['', Validators.required],
+      taskStart: [null, [Validators.required]],
+      taskEnd: [null, [Validators.required]],
+      color: ['', Validators.required],
+      successors: ['']
+    })
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.recompute();
@@ -80,25 +81,31 @@ export class Gantt {
 
   zoomIn() { this.pxPerHour = Math.min(200, Math.round(this.pxPerHour * 1.25)); this.recompute(); }
   zoomOut() { this.pxPerHour = Math.max(1, Math.round(this.pxPerHour / 1.25)); this.recompute(); }
-  zoomHours(hoursPerCell: number) {
-    this.pxPerHour = hoursPerCell;
-    this.recompute();
-  }
-
+  zoomHours(hoursPerCell: number) { this.pxPerHour = hoursPerCell; this.recompute(); }
 
   private recompute() {
-    const start = new Date(this.viewStart);
-    const end = new Date(this.viewEnd);
 
+    const { minDate, maxDate } = this.getMinMaxDates();
+    const start = new Date(minDate);
+    const end = new Date(maxDate);
 
-    this.rowLayout = this.machines.map((m, i) => ({ machine: m, y: this.headerHeight + i * this.rowHeight }));
+    // Calculate todayX once
+    const t = new Date();
+    if (t < start || t > end) {
+      this.todayX = null;
+    } else {
+      this.todayX = this.leftGutter + this.dateToX(t, start);
+    }
+
+    // const start = new Date(this.viewStart);
+    // const end = new Date(this.viewEnd);
+
+    this.rowLayout = this.resources.map((m, i) => ({ resource: m, y: this.headerHeight + i * this.rowHeight }));
     this.totalHeight = this.headerHeight + this.rowLayout.length * this.rowHeight + 8;
-
 
     const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     this.timeWidth = Math.max(0, hours * this.pxPerHour);
     this.totalWidth = this.leftGutter + this.timeWidth + 40;
-
 
     // Days grid
     this.gridDays = [];
@@ -108,7 +115,6 @@ export class Gantt {
       const x = this.leftGutter + this.dateToX(new Date(t), start);
       this.gridDays.push({ x, label: new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
     }
-
 
     // Hours grid
     this.gridHours = [];
@@ -120,12 +126,11 @@ export class Gantt {
       this.gridHours.push({ x, label: d.getHours().toString().padStart(2, '0') + ":00" });
     }
 
-
-    const batchById = new Map<BatchId, { x: number; y: number; w: number; start: Date; end: Date; label: string; id: string; color?: string }>();
+    const batchById = new Map<TaskId, { x: number; y: number; w: number; start: Date; end: Date; label: string; id: string; color?: string }>();
     this.batchLayout = [];
     for (let r = 0; r < this.rowLayout.length; r++) {
       const row = this.rowLayout[r];
-      for (const b of (row.machine.batches || [])) {
+      for (const b of (row.resource.tasks || [])) {
         const s = new Date(b.start as any);
         const e = new Date(b.end as any);
         const x = this.leftGutter + this.dateToX(s, start);
@@ -137,22 +142,22 @@ export class Gantt {
       }
     }
 
-
+    // Build connectors
     this.connectors = [];
-    for (const m of this.machines) {
-      for (const b of (m.batches || [])) {
+    for (const m of this.resources) {
+      for (const b of (m.tasks || [])) {
         if (!b.successors) continue;
         for (const toId of b.successors) {
           const from = batchById.get(b.id);
           const to = batchById.get(toId);
           if (!from || !to) continue;
-          const path = this.makeConnectorPath(from, to);
-          this.connectors.push({ from: b.id, to: toId, path });
+
+          const points = this.makeConnectorPoints(from, to);
+          this.connectors.push({ from: b.id, to: toId, points });
         }
       }
     }
   }
-
 
   private dateToX(d: Date, start: Date) {
     const ms = d.getTime() - start.getTime();
@@ -160,26 +165,74 @@ export class Gantt {
     return hours * this.pxPerHour;
   }
 
-
-  private makeConnectorPath(from: { x: number; y: number; w: number }, to: { x: number; y: number }) {
-    const x1 = from.x + from.w;
+  private makeConnectorPoints(
+    from: { x: number; y: number; w: number },
+    to: { x: number; y: number }
+  ) {
+    const padding = 4; // space between task and arrow
+    const x1 = from.x + from.w + padding; // start a bit outside the task
     const y1 = from.y + this.rowHeight / 2;
-    const x2 = to.x;
+    const x2 = to.x - padding; // end a bit before the next task
     const y2 = to.y + this.rowHeight / 2;
-    const dx = Math.max(24, (x2 - x1) / 2);
-    const c1x = x1 + dx;
-    const c1y = y1;
-    const c2x = x2 - dx;
-    const c2y = y2;
-    return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+
+    const points: string[] = [];
+    points.push(`${x1},${y1}`);
+
+    if (y1 === y2) {
+      // Same row → straight
+      points.push(`${x2},${y2}`);
+    } else {
+      // Different row → elbow
+      const midX = (x1 + x2) / 2;
+      points.push(`${midX},${y1}`);
+      points.push(`${midX},${y2}`);
+      points.push(`${x2},${y2}`);
+    }
+
+    return points.join(" ");
   }
 
+  addTask() {
 
-  get todayX(): number | null {
-    const t = new Date();
-    if (t < this.viewStart || t > this.viewEnd) return null;
-    const x = this.leftGutter + this.dateToX(t, this.viewStart);
-    return x;
+    console.log(this.taskForm.value)
+    const now = new Date();
+    const later = new Date(now.getTime() + 2 * 3600 * 1000); // 2 hours later
+    const newBatch: Task = {
+      id: this.taskForm.get('taskId')?.value,
+      label: this.taskForm.get('resourceId')?.value,
+      start: this.taskForm.get('taskStart')?.value,
+      end: this.taskForm.get('taskEnd')?.value,
+      color: this.taskForm.get('color')?.value,
+    };
+
+    var machine = this.resources.find(f => f.id == this.taskForm.get('resourceId')?.value)!
+    console.log(machine)
+    machine.tasks.push(newBatch);
+    // machine.tasks.push(newBatch);
+    this.recompute(); // refresh layout
+  }
+
+  toggleGridHours(): void {
+    this.showGridHours = !this.showGridHours
+  }
+
+  getMinMaxDates(): { minDate: Date, maxDate: Date } {
+    const dates = this.resources.flatMap(m => m.tasks.flatMap(b => [b.start, b.end])).map(d => new Date(d));
+    const result = {
+      minDate: new Date(Math.min(...dates.map(d => d.getTime()))),
+      maxDate: new Date(Math.max(...dates.map(d => d.getTime())))
+    };
+    return result;
+  }
+
+  openTaskForm(resourceId: string) {
+    this.taskForm.get('resourceId')?.setValue(resourceId)
+    this.taskForm.get('taskId')?.setValue(this.generateTaskId())
+  }
+
+  // generate a random taskid
+  generateTaskId(): string {
+    return Math.random().toString(36).substring(2, 9);
   }
 
 }
