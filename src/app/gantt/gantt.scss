@@ -12,19 +12,12 @@
   top: 0;
   background: #fff;
   z-index: 2;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #a6aab4;
 }
 
-.gantt-wrap {
-  overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
-}
 
 .legend {
   font-size: .8rem;
-  color: #6b7280;
   margin-left: auto;
 }
 
@@ -32,24 +25,20 @@ svg {
   display: block;
 }
 
-.row-label {
-  font-size: .85rem;
-  fill: #111827;
-}
 
-.batch-label {
-  font-size: .75rem;
-  fill: #111827;
+.task-label {
+  font-size: .80rem;
+  // fill: #df1260;
   pointer-events: none;
 }
 
 .grid-line {
-  stroke: #e5e7eb;
+  stroke: #d6d6d6;
   stroke-width: 1;
 }
 
 .hour-line {
-  stroke: #f3f4f6;
+  stroke: #d6d6d6;
   stroke-width: 0.5;
 }
 
@@ -59,16 +48,9 @@ svg {
   stroke-dasharray: 4 3;
 }
 
-.row-band {
-  fill: #f9fafb;
-}
-
 .connector {
-  // stroke: #6b7280;
   stroke-width: 1.5;
-  // fill: none;
   marker-end: url(#arrowhead);
-  // opacity: .9;
 }
 
 .batch-rect {
@@ -92,7 +74,7 @@ svg {
   width: 160px;
   flex-shrink: 0;
   border-right: 1px solid #e5e7eb;
-  background: #f9fafb;
+  // background: #f9fafb;
 }
 
 .machine-row {
@@ -107,7 +89,7 @@ svg {
 }
 
 .machine-name {
-  color: #111827;
+  // color: #111827;
 }
 
 .gantt-scroll {

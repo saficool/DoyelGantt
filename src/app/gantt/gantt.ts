@@ -1,11 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AngularSplitModule } from 'angular-split';
 
 export type TaskId = string;
 
+export interface Resource {
+  resourceId: string;
+  name: string;
+  tasks: Task[];
+}
+export interface Batch {
+  batchId: string;
+  label: string;
+  color?: string;
+}
 export interface Task {
-  id: TaskId;
+  taskId: TaskId;
+  batchId?: string; // Optional, if task is part of a batch
   label: string;
   start: Date | string;
   end: Date | string;
@@ -13,15 +25,9 @@ export interface Task {
   successors?: TaskId[];
 }
 
-export interface Resource {
-  id: string;
-  name: string;
-  tasks: Task[];
-}
-
 @Component({
   selector: 'app-gantt',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AngularSplitModule],
   templateUrl: './gantt.html',
   styleUrl: './gantt.scss'
 })
@@ -30,11 +36,21 @@ export class Gantt {
   @Input() viewStart: Date = new Date(new Date().setHours(0, 0, 0, 0));
   @Input() viewEnd: Date = new Date(new Date().setDate(new Date().getDate() + 7));
 
+
+  batches: Batch[] = [
+    { batchId: '1', label: 'Batch 1', color: '#ff0000' },
+    { batchId: '2', label: 'Batch 2', color: '#00ff00' },
+    { batchId: '3', label: 'Batch 3', color: '#0000ff' },
+    { batchId: '4', label: 'Batch 4', color: '#ffff00' },
+    { batchId: '5', label: 'Batch 5', color: '#ff00ff' },
+    { batchId: '6', label: 'Batch 6', color: '#00ffff' },
+  ]
+
   // Layout constants
-  pxPerHour = 12;
+  pxPerHour = 30; // pixels per hour
   rowHeight = 48;
-  leftGutter = 160;
-  headerHeight = 28;
+  leftGutter = 0;
+  headerHeight = 30;
 
   // Computed layout
   totalWidth = 1000;
@@ -54,9 +70,6 @@ export class Gantt {
 
   taskForm!: FormGroup
 
-  /**
-   * Constructor of the Component
-   */
   constructor(
     private readonly formBuilder: FormBuilder
   ) {
@@ -67,6 +80,7 @@ export class Gantt {
     this.taskForm = this.formBuilder.group({
       resourceId: ['', [Validators.required]],
       taskId: ['', Validators.required],
+      batchId: [''],
       taskName: ['', Validators.required],
       taskStart: [null, [Validators.required]],
       taskEnd: [null, [Validators.required]],
@@ -136,9 +150,9 @@ export class Gantt {
         const x = this.leftGutter + this.dateToX(s, start);
         const w = Math.max(4, this.dateToX(e, start) - this.dateToX(s, start));
         const y = row.y;
-        const item = { id: b.id, label: b.label, x, y, w, start: s, end: e, color: b.color };
+        const item = { id: b.taskId, label: b.label, x, y, w, start: s, end: e, color: b.color };
         this.batchLayout.push(item);
-        batchById.set(b.id, item);
+        batchById.set(b.taskId, item);
       }
     }
 
@@ -148,12 +162,12 @@ export class Gantt {
       for (const b of (m.tasks || [])) {
         if (!b.successors) continue;
         for (const toId of b.successors) {
-          const from = batchById.get(b.id);
+          const from = batchById.get(b.taskId);
           const to = batchById.get(toId);
           if (!from || !to) continue;
 
           const points = this.makeConnectorPoints(from, to);
-          this.connectors.push({ from: b.id, to: toId, points });
+          this.connectors.push({ from: b.taskId, to: toId, points });
         }
       }
     }
@@ -195,17 +209,18 @@ export class Gantt {
   addTask() {
 
     console.log(this.taskForm.value)
+    return
     const now = new Date();
     const later = new Date(now.getTime() + 2 * 3600 * 1000); // 2 hours later
     const newBatch: Task = {
-      id: this.taskForm.get('taskId')?.value,
-      label: this.taskForm.get('resourceId')?.value,
+      taskId: this.taskForm.get('taskId')?.value,
+      label: this.taskForm.get('taskName')?.value,
       start: this.taskForm.get('taskStart')?.value,
       end: this.taskForm.get('taskEnd')?.value,
       color: this.taskForm.get('color')?.value,
     };
 
-    var machine = this.resources.find(f => f.id == this.taskForm.get('resourceId')?.value)!
+    var machine = this.resources.find(f => f.resourceId == this.taskForm.get('resourceId')?.value)!
     console.log(machine)
     machine.tasks.push(newBatch);
     // machine.tasks.push(newBatch);
@@ -233,6 +248,17 @@ export class Gantt {
   // generate a random taskid
   generateTaskId(): string {
     return Math.random().toString(36).substring(2, 9);
+  }
+
+  getBatchColor(): string {
+    const batchId = this.taskForm.get('batchId')?.value;
+    if (!batchId) return '#000000'; // Default color if no batch selected
+    const batch = this.batches.find(b => b.batchId === batchId);
+    return batch ? batch.color! : '#000000';
+  }
+
+  getElementColor(task: Task): string {
+    return task.color || this.getBatchColor();
   }
 
 }

@@ -8,48 +8,66 @@
   <div class="legend">px/hr: {{pxPerHour}} · Range: {{viewStart | date:'MMM d'}}–{{viewEnd | date:'MMM d, y'}}</div>
 </div>
 
-
 <div class="gantt-container">
 
-  <div class="machine-column">
-    @for (row of rowLayout; track $index) {
+  <div class="machine-column" [style]="{'margin-top': headerHeight+'px' }">
+    @for (row of rowLayout; let i = $index; track $index) {
     <div class="machine-row">
       <span class="machine-name">{{ row.resource.name }}</span>
-      <button class="btn btn-sm btn-light" (click)="openTaskForm(row.resource.id)" data-bs-toggle="modal"
-        data-bs-target="#exampleModal">+</button>
+      <button class="btn btn-sm btn-light" (click)="openTaskForm(row.resource.resourceId)" data-bs-toggle="modal"
+        [attr.data-bs-target]="'#exampleModal_{{i}}'">
+        +
+      </button>
 
-      <div class="modal fade" id="exampleModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
-        aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal fade" [attr.id]="'exampleModal_{{i}}'" tabindex="-1" data-bs-backdrop="static"
+        data-bs-keyboard="false" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
-              <h1 class="modal-title fs-5" id="exampleModalLabel">New Task ({{row.resource.name}})</h1>
+              <h1 class="modal-title fs-5">New Task ({{row.resource.name}} {{i}})</h1>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
               <form [formGroup]="taskForm">
-                <div class="row g-3">
-                  <div class="col-sm-10">
-                    <div class="input-group">
+                <div class="row g-2">
+
+                  <div class="col-sm-12">
+                    <div class="input-group input-group-sm">
                       <span class="input-group-text" id="task-name">Task Name</span>
-                      <input type="text" class="form-control shadow-none" formControlName="taskName"
+                      <input type="text" class="form-control form-control-sm shadow-none" formControlName="taskName"
                         aria-label="task-name" aria-describedby="task-name">
                     </div>
                   </div>
 
-                  <div class="col-sm-2">
-                    <input type="color" class="form-control shadow-none form-control-color" formControlName="color"
-                      id="exampleColorInput" value="#563d7c" title="Choose your color">
+                  <div class="col-sm-10">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text" id="successors-task">Batch</span>
+                      <select class="form-select shadow-none" aria-label="Default select example"
+                        formControlName="batchId">
+                        <option selected>Open this select menu</option>
+                        @for (batch of batches; track $index) {
+                        <option [value]="batch.batchId">{{batch.label}}</option>
+                        }
+                      </select>
+                    </div>
                   </div>
+
+                  <div class="col-sm-2">
+                    <input type="color" class="form-control form-control-sm shadow-none form-control-color w-100 p-1"
+                      formControlName="color" id="exampleColorInput" [value]="getBatchColor()"
+                      title="Choose your color">
+                  </div>
+
                   <div class="col-sm-6">
-                    <div class="input-group">
+                    <div class="input-group input-group-sm">
                       <span class="input-group-text" id="task-start">Start</span>
                       <input type="datetime-local" class="form-control shadow-none" aria-label="task-start"
                         formControlName="taskStart" aria-describedby="task-start">
                     </div>
                   </div>
+
                   <div class="col-sm-6">
-                    <div class="input-group">
+                    <div class="input-group input-group-sm">
                       <span class="input-group-text" id="task-end">End</span>
                       <input type="datetime-local" class="form-control shadow-none" aria-label="task-end"
                         formControlName="taskEnd" aria-describedby="task-end">
@@ -59,7 +77,7 @@
                   <h5>Successor</h5>
 
                   <div class="col-sm-6">
-                    <div class="input-group">
+                    <div class="input-group input-group-sm">
                       <span class="input-group-text" id="successors-machine">Resource</span>
                       <select class="form-select shadow-none" aria-label="Default select example">
                         <option selected>Open this select menu</option>
@@ -69,8 +87,9 @@
                       </select>
                     </div>
                   </div>
+
                   <div class="col-sm-6">
-                    <div class="input-group">
+                    <div class="input-group input-group-sm">
                       <span class="input-group-text" id="successors-task">Task</span>
                       <select class="form-select shadow-none" aria-label="Default select example">
                         <option selected>Open this select menu</option>
@@ -80,10 +99,8 @@
                       </select>
                     </div>
                   </div>
-
                 </div>
               </form>
-
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -96,20 +113,21 @@
     }
   </div>
 
-  <!-- Right scrollable timeline -->
   <div class="gantt-scroll" #scrollHost>
     <svg [attr.width]="totalWidth" [attr.height]="totalHeight">
+
       <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"></polygon>
         </marker>
       </defs>
 
-      <!-- Row background -->
       @for (row of rowLayout; track $index; let r = $index) {
+
       <ng-container>
-        <rect class="row-band" x="0" [attr.y]="row.y" [attr.width]="timeWidth" [attr.height]="rowHeight"
-          [attr.fill]="r % 2 === 0 ? '#ffffff' : '#fcfcfd'" />
+        <line x1="0" [attr.y1]="row.y" [attr.x2]="timeWidth" [attr.y2]="row.y" stroke="#d6d6d6" stroke-width="0.5" />
+        <line x1="0" [attr.y1]="row.y + rowHeight" [attr.x2]="timeWidth" [attr.y2]="row.y + rowHeight" stroke="#d6d6d6"
+          stroke-width="0.5" />
       </ng-container>
       }
 
@@ -117,7 +135,7 @@
       @for (g of gridDays; track $index) {
       <ng-container>
         <line class="grid-line" [attr.x1]="g.x" y1="0" [attr.x2]="g.x" [attr.y2]="totalHeight" />
-        <text [attr.x]="g.x + 4" y="16" font-size="12" fill="#6b7280">{{ g.label }}</text>
+        <text [attr.x]="g.x + 4" y="16" font-size="14" fill="#000">{{ g.label }}</text>
       </ng-container>
       }
 
@@ -125,7 +143,7 @@
       @for (h of gridHours; track $index) {
       <ng-container>
         <line class="hour-line" [attr.x1]="h.x" y1="0" [attr.x2]="h.x" [attr.y2]="totalHeight" />
-        <text *ngIf="pxPerHour >= 8" [attr.x]="h.x + 2" y="28" font-size="9" fill="#9ca3af">{{ h.label }}</text>
+        <text *ngIf="pxPerHour >= 8" [attr.x]="h.x + 2" y="28" font-size="10" fill="#000">{{ h.label }}</text>
       </ng-container>
       }
       }
@@ -134,11 +152,12 @@
       <line class="today-line" [attr.x1]="todayX" y1="0" [attr.x2]="todayX" [attr.y2]="totalHeight" />
       }
 
+      <!-- [attr.fill]="b.color || '#93c5fd'"  -->
       @for (b of batchLayout; track $index) {
       <ng-container>
         <rect class="batch-rect" [attr.x]="b.x" [attr.y]="b.y + 6" [attr.width]="b.w" [attr.height]="rowHeight - 12"
           [attr.fill]="b.color || '#93c5fd'" (mouseenter)="hover=b" (mouseleave)="hover=null"></rect>
-        <text class="batch-label" [attr.x]="b.x + 10" [attr.y]="b.y + rowHeight/2 + 4">{{ b.label }}</text>
+        <text class="task-label" [attr.x]="b.x + 10" [attr.y]="b.y + rowHeight/2 + 4">{{ b.label }}</text>
       </ng-container>
       }
 
@@ -147,7 +166,6 @@
         marker-end="url(#arrowhead)" />
       }
 
-      <!-- Tooltip -->
       <g *ngIf="hover as h" class="tooltip">
         <rect [attr.x]="h.x + 8" [attr.y]="h.y - 28" rx="6" ry="6" width="220" height="24" fill="#111827"
           opacity="0.9" />
